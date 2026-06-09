@@ -1,0 +1,12 @@
+flask==3.0.3
+psycopg2-binary==2.9.9
+pgvector==0.3.2
+open-clip-torch==2.26.1
+transformers==4.44.2
+bitsandbytes==0.43.3
+accelerate==0.33.0
+datasets==2.20.0
+rapidfuzz==3.9.3
+nltk==3.8.1
+rouge-score==0.1.2
+numpy==1.26.4

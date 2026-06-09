@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fuzzyrag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fuzzyrag}
+      POSTGRES_DB: ${POSTGRES_DB:-fuzzyrag}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fuzzyrag}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-fuzzyrag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fuzzyrag}
+      POSTGRES_DB: ${POSTGRES_DB:-fuzzyrag}
+      LLM_MODEL: ${LLM_MODEL:-StanfordAIMI/CheXagent-8b}
+      LOAD_BITS: ${LOAD_BITS:-4}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224}
+      VECTOR_DIM: ${VECTOR_DIM:-512}
+      RRF_K: ${RRF_K:-60}
+      TOP_K: ${TOP_K:-5}
+      RADQA_DATA_PATH: ${RADQA_DATA_PATH:-/data/radqa}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ${RADQA_DATA_PATH:-./data/radqa}:/data/radqa:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:5000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

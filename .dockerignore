@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.venv
+venv/
+
+# Docker (never copy build artefacts into an image)
+.dockerignore
+**/Dockerfile*
+**/docker-compose*
+**/compose.y*ml
+
+# Environment and secrets
+.env
+**/.env.*
+
+# Project-specific exclusions from the backend image
+frontend/
+scripts/
+data/
+
+# Claude Code
+.claude/
+
+# IDE
+**/.vscode
+**/.vs
+**/.idea
+
+# OS
+**/.DS_Store
+
+# Docs / misc
+README.md
+CLAUDE.md
+LICENSE
+*.log
