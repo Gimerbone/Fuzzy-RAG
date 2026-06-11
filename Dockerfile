@@ -29,14 +29,9 @@ RUN adduser \
     && mkdir -p /cache/huggingface /app/baselines \
     && chown appuser:appuser /cache/huggingface /app/baselines
 
-# Leverage BuildKit cache mount — pip cache survives rebuilds without hitting PyPI.
-# Bind-mount keeps requirements.txt out of the layer (only the installed packages land in the image).
+COPY backend/requirements.txt requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=bind,source=backend/requirements.txt,target=requirements.txt \
     pip install -r requirements.txt
-
-# NLTK punkt tokenizer needed by eval/metrics.py.
-RUN python -c "import nltk; nltk.download('punkt', quiet=True); nltk.download('punkt_tab', quiet=True)"
 
 USER appuser
 

@@ -4,13 +4,8 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-import nltk
+from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from rouge_score import rouge_scorer
-
-try:
-    nltk.data.find("tokenizers/punkt_tab")
-except LookupError:
-    nltk.download("punkt_tab", quiet=True)
 
 
 def _tokenize(text: str) -> list[str]:
@@ -31,8 +26,6 @@ def token_f1(prediction: str, reference: str) -> float:
 
 
 def bleu(predictions: list[str], references: list[str]) -> float:
-    from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
-
     smoothie = SmoothingFunction().method1
     refs = [[_tokenize(r)] for r in references]
     hyps = [_tokenize(p) for p in predictions]
