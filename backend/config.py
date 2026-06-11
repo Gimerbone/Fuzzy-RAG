@@ -8,7 +8,8 @@ class Config:
     POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "fuzzyrag")
     POSTGRES_DB = os.environ.get("POSTGRES_DB", "fuzzyrag")
 
-    LLM_MODEL = os.environ.get("LLM_MODEL", "StanfordAIMI/CheXagent-8b")
+    HF_TOKEN = os.environ.get("HF_TOKEN")
+    LLM_MODEL = os.environ.get("LLM_MODEL", "google/medgemma-4b-it")
     LOAD_BITS = int(os.environ.get("LOAD_BITS", 4))  # 4 or 8 for bitsandbytes
 
     EMBEDDING_MODEL = os.environ.get(
@@ -21,6 +22,9 @@ class Config:
     TOP_K = int(os.environ.get("TOP_K", 5))
 
     RADQA_DATA_PATH = os.environ.get("RADQA_DATA_PATH", "./data/radqa")
+    PHYSIONET_USER = os.environ.get("PHYSIONET_USER")
+    PHYSIONET_PASSWORD = os.environ.get("PHYSIONET_PASSWORD")
+    BASELINES_PATH = os.environ.get("BASELINES_PATH", "./baselines")
 
     @property
     def dsn(self) -> str:

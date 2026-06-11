@@ -7,6 +7,9 @@ from indexing.dataset_loader import load_pubmedqa, load_medqa, load_radqa
 _status: dict = {"state": "idle", "indexed": 0, "errors": 0, "current_dataset": None}
 _lock = threading.Lock()
 
+_dl_status: dict = {"state": "idle", "current_dataset": None, "error": None}
+_dl_lock = threading.Lock()
+
 BATCH_SIZE = 64
 
 
@@ -18,6 +21,54 @@ def get_status() -> dict:
 def _set_status(**kwargs):
     with _lock:
         _status.update(kwargs)
+
+
+def get_download_status() -> dict:
+    with _dl_lock:
+        return dict(_dl_status)
+
+
+def _set_dl_status(**kwargs):
+    with _dl_lock:
+        _dl_status.update(kwargs)
+
+
+def run_download(datasets: list[str] | None = None):
+    if datasets is None:
+        datasets = ["pubmedqa", "medqa", "radqa"]
+
+    _set_dl_status(state="running", current_dataset=None, error=None)
+    try:
+        for dataset in datasets:
+            _set_dl_status(current_dataset=dataset)
+            if dataset == "pubmedqa":
+                from datasets import load_dataset as _ld
+                _ld("qiaojin/PubMedQA", "pqa_labeled", trust_remote_code=True)
+            elif dataset == "medqa":
+                from datasets import load_dataset as _ld
+                _ld("bigbio/med_qa", "med_qa_en_bigbio_qa", trust_remote_code=True)
+            elif dataset == "radqa":
+                from pathlib import Path
+                from indexing.dataset_loader import _download_radqa
+                if config.PHYSIONET_USER and config.PHYSIONET_PASSWORD:
+                    _download_radqa(
+                        Path(config.RADQA_DATA_PATH),
+                        config.PHYSIONET_USER,
+                        config.PHYSIONET_PASSWORD,
+                    )
+                else:
+                    raise RuntimeError(
+                        "PHYSIONET_USER and PHYSIONET_PASSWORD must be set to download RadQA."
+                    )
+        _set_dl_status(state="done", current_dataset=None)
+    except Exception as exc:
+        _set_dl_status(state="error", current_dataset=None, error=str(exc))
+        raise
+
+
+def run_download_async(datasets: list[str] | None = None):
+    thread = threading.Thread(target=run_download, args=(datasets,), daemon=True)
+    thread.start()
 
 
 def _index_records(records: list[dict], conn):
@@ -53,7 +104,9 @@ def run_indexing(datasets: list[str] | None = None):
     loaders = {
         "pubmedqa": lambda: load_pubmedqa(),
         "medqa": lambda: load_medqa(),
-        "radqa": lambda: load_radqa(config.RADQA_DATA_PATH),
+        "radqa": lambda: load_radqa(
+            config.RADQA_DATA_PATH, config.PHYSIONET_USER, config.PHYSIONET_PASSWORD
+        ),
     }
 
     try:

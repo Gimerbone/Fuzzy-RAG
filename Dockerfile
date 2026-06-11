@@ -26,8 +26,8 @@ RUN adduser \
     --no-create-home \
     --uid "${UID}" \
     appuser \
-    && mkdir -p /cache/huggingface \
-    && chown appuser:appuser /cache/huggingface
+    && mkdir -p /cache/huggingface /app/baselines \
+    && chown appuser:appuser /cache/huggingface /app/baselines
 
 # Leverage BuildKit cache mount — pip cache survives rebuilds without hitting PyPI.
 # Bind-mount keeps requirements.txt out of the layer (only the installed packages land in the image).

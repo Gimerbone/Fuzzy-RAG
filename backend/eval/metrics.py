@@ -1,5 +1,8 @@
+import json
 import re
 from collections import Counter
+from datetime import datetime, timezone
+from pathlib import Path
 
 import nltk
 from rouge_score import rouge_scorer
@@ -40,6 +43,51 @@ def rouge_l(prediction: str, reference: str) -> float:
     scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
     score = scorer.score(reference, prediction)
     return score["rougeL"].fmeasure
+
+
+def save_baseline(
+    name: str,
+    metrics: dict,
+    model: str,
+    dataset_filter: str | None = None,
+) -> dict:
+    from config import config
+
+    baselines_dir = Path(config.BASELINES_PATH)
+    baselines_dir.mkdir(parents=True, exist_ok=True)
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+    filename = f"{safe_name}_{ts}.json"
+
+    entry = {
+        "name": name,
+        "filename": filename,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "model": model,
+        "dataset_filter": dataset_filter,
+        "metrics": metrics,
+    }
+    with open(baselines_dir / filename, "w") as fh:
+        json.dump(entry, fh, indent=2)
+    return entry
+
+
+def list_baselines() -> list[dict]:
+    from config import config
+
+    baselines_dir = Path(config.BASELINES_PATH)
+    if not baselines_dir.exists():
+        return []
+
+    results = []
+    for fpath in sorted(baselines_dir.glob("*.json"), reverse=True):
+        try:
+            with open(fpath) as fh:
+                results.append(json.load(fh))
+        except (json.JSONDecodeError, OSError):
+            continue
+    return results
 
 
 def evaluate_batch(predictions: list[str], references: list[str]) -> dict:

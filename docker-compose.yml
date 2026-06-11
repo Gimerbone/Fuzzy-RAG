@@ -27,17 +27,22 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-fuzzyrag}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fuzzyrag}
       POSTGRES_DB: ${POSTGRES_DB:-fuzzyrag}
-      LLM_MODEL: ${LLM_MODEL:-StanfordAIMI/CheXagent-8b}
+      HF_TOKEN: ${HF_TOKEN}
+      LLM_MODEL: ${LLM_MODEL:-google/medgemma-4b-it}
       LOAD_BITS: ${LOAD_BITS:-4}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224}
       VECTOR_DIM: ${VECTOR_DIM:-512}
       RRF_K: ${RRF_K:-60}
       TOP_K: ${TOP_K:-5}
       RADQA_DATA_PATH: ${RADQA_DATA_PATH:-/data/radqa}
+      PHYSIONET_USER: ${PHYSIONET_USER}
+      PHYSIONET_PASSWORD: ${PHYSIONET_PASSWORD}
+      BASELINES_PATH: ${BASELINES_PATH:-/app/baselines}
     ports:
       - "5000:5000"
     volumes:
       - ${RADQA_DATA_PATH:-./data/radqa}:/data/radqa:ro
+      - baselines:/app/baselines
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,3 +65,4 @@ services:
 
 volumes:
   pgdata:
+  baselines:

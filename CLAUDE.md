@@ -44,7 +44,7 @@ docker compose exec backend python -c "from indexing.indexer import run_indexing
 - PostgreSQL `tsvector` + GIN index — BM25 sparse retrieval
 - `rapidfuzz` — fuzzy metadata matching
 - RRF (k=60) — fuses ranked lists from all three retrievers
-- `CheXagent-8b` — answer generation (local HuggingFace model, 4-bit NF4 via `bitsandbytes`)
+- `google/medgemma-4b-it` — answer generation (local HuggingFace model, 4-bit NF4 via `bitsandbytes`)
 - Requires NVIDIA GPU + `nvidia-container-toolkit` for Docker GPU passthrough
 
 ## Environment Variables

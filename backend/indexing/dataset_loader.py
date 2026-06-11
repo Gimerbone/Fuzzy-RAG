@@ -64,14 +64,42 @@ def load_medqa() -> Iterator[dict]:
         }
 
 
-def load_radqa(data_path: str) -> Iterator[dict]:
-    """
-    RadQA requires PhysioNet credentialed access.
-    Download from https://physionet.org/content/radqa/1.0.0/
-    Place radqa_train.json (and optionally radqa_dev.json, radqa_test.json)
-    in the directory pointed to by data_path / RADQA_DATA_PATH.
-    """
+_PHYSIONET_BASE = "https://physionet.org/files/radqa/1.0.0"
+_RADQA_FILES = ("radqa_train.json", "radqa_dev.json", "radqa_test.json")
+
+
+def _download_radqa(base: Path, user: str, password: str) -> None:
+    import requests
+
+    base.mkdir(parents=True, exist_ok=True)
+    for fname in _RADQA_FILES:
+        fpath = base / fname
+        if fpath.exists():
+            continue
+        url = f"{_PHYSIONET_BASE}/{fname}"
+        print(f"[radqa] Downloading {fname} from PhysioNet ...")
+        resp = requests.get(url, auth=(user, password), stream=True, timeout=120)
+        if resp.status_code == 401:
+            raise PermissionError(
+                "PhysioNet credentials rejected — check PHYSIONET_USER and PHYSIONET_PASSWORD."
+            )
+        resp.raise_for_status()
+        with open(fpath, "wb") as fh:
+            for chunk in resp.iter_content(chunk_size=65536):
+                fh.write(chunk)
+        print(f"[radqa] Saved {fname}.")
+
+
+def load_radqa(
+    data_path: str,
+    physionet_user: str | None = None,
+    physionet_password: str | None = None,
+) -> Iterator[dict]:
     base = Path(data_path)
+
+    if physionet_user and physionet_password:
+        _download_radqa(base, physionet_user, physionet_password)
+
     if not base.exists():
         print(f"[radqa] Data path {base} not found — skipping RadQA.")
         return
