@@ -12,6 +12,13 @@ class Config:
     LLM_MODEL = os.environ.get("LLM_MODEL", "google/medgemma-4b-it")
     LOAD_BITS = int(os.environ.get("LOAD_BITS", 4))  # 4 or 8 for bitsandbytes
 
+    # Optional caps for the device_map="auto" memory planner. Leave unset to let
+    # transformers fill the GPU first and offload any overflow to CPU RAM.
+    # Format is HuggingFace's, e.g. "10GiB". GPU offload to CPU is always allowed
+    # (llm_int8_enable_fp32_cpu_offload) so the model loads even on a small GPU.
+    GPU_MAX_MEMORY = os.environ.get("GPU_MAX_MEMORY")  # e.g. "10GiB"
+    CPU_MAX_MEMORY = os.environ.get("CPU_MAX_MEMORY", "30GiB")
+
     EMBEDDING_MODEL = os.environ.get(
         "EMBEDDING_MODEL",
         "hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224",

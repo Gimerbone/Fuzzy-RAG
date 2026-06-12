@@ -34,14 +34,25 @@ services:
       VECTOR_DIM: ${VECTOR_DIM:-512}
       RRF_K: ${RRF_K:-60}
       TOP_K: ${TOP_K:-5}
-      RADQA_DATA_PATH: ${RADQA_DATA_PATH:-/data/radqa}
+      # Container path is fixed and absolute. RADQA_DATA_PATH in .env only sets
+      # the *host* mount source below — it must not leak in as a relative path.
+      RADQA_DATA_PATH: /data/radqa
       PHYSIONET_USER: ${PHYSIONET_USER}
       PHYSIONET_PASSWORD: ${PHYSIONET_PASSWORD}
       BASELINES_PATH: ${BASELINES_PATH:-/app/baselines}
+      # Full GPU visibility for the NVIDIA container runtime.
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      # Optional: cap GPU memory the model planner may use (e.g. "10GiB").
+      # Leave unset to fill the GPU and offload overflow to CPU automatically.
+      GPU_MAX_MEMORY: ${GPU_MAX_MEMORY:-}
+      CPU_MAX_MEMORY: ${CPU_MAX_MEMORY:-30GiB}
     ports:
       - "5000:5000"
     volumes:
-      - ${RADQA_DATA_PATH:-./data/radqa}:/data/radqa:ro
+      # Read-write so the in-app RadQA download can write files here.
+      # Downloaded JSON also persists on the host at RADQA_DATA_PATH.
+      - ${RADQA_DATA_PATH:-./data/radqa}:/data/radqa
       - baselines:/app/baselines
     depends_on:
       postgres:
@@ -51,7 +62,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              count: all
               capabilities: [gpu]
 
   frontend:

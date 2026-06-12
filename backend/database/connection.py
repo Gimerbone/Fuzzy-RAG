@@ -7,6 +7,14 @@ def get_connection():
     return psycopg2.connect(config.dsn)
 
 
+def get_source_counts() -> dict[str, int]:
+    """Return {source_name: record_count} for every indexed dataset."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT source, COUNT(*) FROM documents GROUP BY source")
+            return {row[0]: row[1] for row in cur.fetchall()}
+
+
 def init_db():
     with get_connection() as conn:
         with conn.cursor() as cur:

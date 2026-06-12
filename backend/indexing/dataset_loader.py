@@ -10,9 +10,12 @@ Each loader yields dicts with keys:
 """
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Iterator
+
+log = logging.getLogger("fuzzyrag.dataset_loader")
 
 
 def load_pubmedqa() -> Iterator[dict]:
@@ -65,19 +68,25 @@ def load_medqa() -> Iterator[dict]:
 
 
 _PHYSIONET_BASE = "https://physionet.org/files/radqa/1.0.0"
-_RADQA_FILES = ("radqa_train.json", "radqa_dev.json", "radqa_test.json")
+# (remote_filename, local_filename) — PhysioNet uses train/dev/test.json;
+# we save with the radqa_ prefix to avoid ambiguity in the local data dir.
+_RADQA_FILES = [
+    ("train.json", "radqa_train.json"),
+    ("dev.json",   "radqa_dev.json"),
+    ("test.json",  "radqa_test.json"),
+]
 
 
 def _download_radqa(base: Path, user: str, password: str) -> None:
     import requests
 
     base.mkdir(parents=True, exist_ok=True)
-    for fname in _RADQA_FILES:
-        fpath = base / fname
+    for remote_fname, local_fname in _RADQA_FILES:
+        fpath = base / local_fname
         if fpath.exists():
             continue
-        url = f"{_PHYSIONET_BASE}/{fname}"
-        print(f"[radqa] Downloading {fname} from PhysioNet ...")
+        url = f"{_PHYSIONET_BASE}/{remote_fname}"
+        log.info("radqa | downloading %s from PhysioNet …", remote_fname)
         resp = requests.get(url, auth=(user, password), stream=True, timeout=120)
         if resp.status_code == 401:
             raise PermissionError(
@@ -87,7 +96,7 @@ def _download_radqa(base: Path, user: str, password: str) -> None:
         with open(fpath, "wb") as fh:
             for chunk in resp.iter_content(chunk_size=65536):
                 fh.write(chunk)
-        print(f"[radqa] Saved {fname}.")
+        log.info("radqa | saved %s", local_fname)
 
 
 def load_radqa(
@@ -101,7 +110,7 @@ def load_radqa(
         _download_radqa(base, physionet_user, physionet_password)
 
     if not base.exists():
-        print(f"[radqa] Data path {base} not found — skipping RadQA.")
+        log.warning("radqa | data path %s not found — skipping RadQA", base)
         return
 
     for fname in ("radqa_train.json", "radqa_dev.json", "radqa_test.json"):

@@ -1,8 +1,12 @@
+import logging
 import threading
+
 from config import config
-from database.connection import get_connection, init_db
+from database.connection import get_connection, get_source_counts, init_db
 from indexing.embedder import embed
 from indexing.dataset_loader import load_pubmedqa, load_medqa, load_radqa
+
+log = logging.getLogger("fuzzyrag.indexer")
 
 _status: dict = {"state": "idle", "indexed": 0, "errors": 0, "current_dataset": None}
 _lock = threading.Lock()
@@ -37,9 +41,11 @@ def run_download(datasets: list[str] | None = None):
     if datasets is None:
         datasets = ["pubmedqa", "medqa", "radqa"]
 
+    log.info("download | starting: %s", datasets)
     _set_dl_status(state="running", current_dataset=None, error=None)
     try:
         for dataset in datasets:
+            log.info("download | fetching %s …", dataset)
             _set_dl_status(current_dataset=dataset)
             if dataset == "pubmedqa":
                 from datasets import load_dataset as _ld
@@ -60,8 +66,11 @@ def run_download(datasets: list[str] | None = None):
                     raise RuntimeError(
                         "PHYSIONET_USER and PHYSIONET_PASSWORD must be set to download RadQA."
                     )
+            log.info("download | %s done", dataset)
+        log.info("download | all datasets done")
         _set_dl_status(state="done", current_dataset=None)
     except Exception as exc:
+        log.error("download | failed: %s", exc)
         _set_dl_status(state="error", current_dataset=None, error=str(exc))
         raise
 
@@ -98,6 +107,7 @@ def run_indexing(datasets: list[str] | None = None):
     if datasets is None:
         datasets = ["pubmedqa", "medqa", "radqa"]
 
+    log.info("indexing | starting: %s", datasets)
     _set_status(state="running", indexed=0, errors=0)
     init_db()
 
@@ -110,31 +120,47 @@ def run_indexing(datasets: list[str] | None = None):
     }
 
     try:
+        existing_counts = get_source_counts()
         with get_connection() as conn:
             for dataset in datasets:
                 if dataset not in loaders:
+                    log.warning("indexing | unknown dataset %r — skipped", dataset)
                     continue
+                already = existing_counts.get(dataset, 0)
+                if already > 0:
+                    log.info("indexing | %s already has %d records — skipping", dataset, already)
+                    with _lock:
+                        _status["indexed"] += already
+                    continue
+                log.info("indexing | starting %s …", dataset)
                 _set_status(current_dataset=dataset)
                 batch = []
+                dataset_count = 0
                 try:
                     for record in loaders[dataset]():
                         batch.append(record)
                         if len(batch) >= BATCH_SIZE:
                             _index_records(batch, conn)
+                            dataset_count += len(batch)
                             with _lock:
                                 _status["indexed"] += len(batch)
+                            log.info("indexing | %s — %d records indexed so far", dataset, _status["indexed"])
                             batch = []
                     if batch:
                         _index_records(batch, conn)
+                        dataset_count += len(batch)
                         with _lock:
                             _status["indexed"] += len(batch)
+                    log.info("indexing | %s complete — %d records", dataset, dataset_count)
                 except Exception as exc:
                     with _lock:
                         _status["errors"] += 1
-                    print(f"[indexer] Error in {dataset}: {exc}")
+                    log.error("indexing | error in %s: %s", dataset, exc)
 
+        log.info("indexing | all done — total %d records, %d errors", _status["indexed"], _status["errors"])
         _set_status(state="done", current_dataset=None)
     except Exception as exc:
+        log.error("indexing | fatal error: %s", exc)
         _set_status(state="error", current_dataset=None)
         raise
 
